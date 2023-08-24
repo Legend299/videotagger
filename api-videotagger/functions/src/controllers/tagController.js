@@ -1,11 +1,12 @@
 const {
   getTags,
-  getTagsFromVideoAndEmail,
+  getTagsFromVideo,
   insertTag,
   deleteTag
 } = require('../services/tagService');
 
 const getAll = async (_, res, next) => {
+  console.log('Getting all tags...');
   try {
     const tags = await getTags();
     res.status(200).json(tags);
@@ -14,19 +15,17 @@ const getAll = async (_, res, next) => {
   }
 };
 
-const getFromVideoAndEmail = async (req, res, next) => {
+const getFromVideo = async (req, res, next) => {
   try {
-    const tags = await getTagsFromVideoAndEmail(
-      req.params.video,
-      req.params.user
-    );
+    console.log(req.params.video);
+    const tags = await getTagsFromVideo(req.params.video);
     res.status(200).json(tags);
   } catch (error) {
     next(error);
   }
 };
 
-const post = async (req, res, next) => {
+const put = async (req, res, next) => {
   try {
     const tag = await insertTag(req.body);
     res.status(201).json(tag);
@@ -46,7 +45,7 @@ const del = async (req, res, next) => {
 
 module.exports = {
   getAll,
-  getFromVideoAndEmail,
-  post,
+  getFromVideo,
+  put,
   del
 };

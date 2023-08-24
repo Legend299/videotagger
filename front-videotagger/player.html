@@ -106,15 +106,21 @@
           <p>Subido por:</p>
           <p id="video-author"></p>
         </div>
-        <div class="yt">
-          <iframe
+        <div class="yt" id="yt">
+          <!-- <iframe
             class="border-2"
             frameborder="0"
             width="560"
             height="315"
             allowfullscreen
             id="ytplayer"
-          ></iframe>
+          ></iframe> -->
+          <!-- <video
+            class="border-2"
+            width="560"
+            height="315"
+            id="ytplayer"
+          ></video> -->
         </div>
         <div class="mt-2" id="botones">
           <button class="btn btn-outline-secondary m-1" id="btn-home">
@@ -150,15 +156,14 @@
                 </div>
                 <div class="modal-body">
                   <div class="form-group">
-                    <label for="timestamp-input" class="m-2"
-                      >Tiempo (en horas o minutos)</label
-                    >
+                    <label for="timestamp-input" class="m-2">Tiempo</label>
                     <input
                       type="text"
                       class="form-control"
                       id="timestamp-input"
-                      placeholder="01:00 o 01:00:00"
+                      placeholder="01:00:00"
                       pattern="^(?:([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?)$"
+                      disabled
                       required
                     />
                     <label for="exampleFormControlInput2" class="m-2"
@@ -194,221 +199,334 @@
     </div>
     <script src="js/index.js" type="module"></script>
     <script>
-      const urlParams = new URLSearchParams(window.location.search);
-      const id = urlParams.get("id");
-      const video_preview = document.querySelector("iframe");
-      video_preview.src = `https://drive.google.com/file/d/${id}/preview`;
+      // const API_TAGS =
+      //   "https://stunning-capybara-1efe1a.netlify.app/.netlify/functions/api/tags";
+      // const API_TAGS = "http://localhost:9000/.netlify/functions/api/tags";
+      const API_TAGS = "http://localhost:3001/api/tag";
+      const API_KEY = "AIzaSyAZ9QFnClI7dRm22yzVHicCCVkHrB-5Lo4";
+      let videoPlayer;
 
-      const video_title = document.querySelector("#video-title");
-      const page_title = document.querySelector("#page-title");
-      const video_views = document.querySelector("#video-views-count");
+      // Función principal para cargar el video y la información
+      function loadVideo() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const id = urlParams.get("id");
 
-      let video = JSON.parse(localStorage.getItem("videoInfo"));
-      video_title.innerHTML = video.name;
-      page_title.innerHTML = video.name;
-      video_views.innerHTML = video.views;
+        const videoUrl = `https://www.googleapis.com/drive/v3/files/${id}?key=${API_KEY}&alt=media`;
+        videoPlayer = createVideoPlayer(videoUrl);
 
-      const video_author = document.querySelector("#video-author");
-      let user = JSON.parse(localStorage.getItem("videoInfo"));
-      video_author.innerHTML = user.user_name;
+        getVideoInfo(id, API_KEY);
 
-      const timestamp = document.querySelector("#timestamp");
-      timestamp?.addEventListener("click", () => {
-        video_preview.src = `https://drive.google.com/file/d/${id}/preview?t=4`;
-      });
+        const playerDiv = document.getElementById("yt");
+        playerDiv.appendChild(videoPlayer);
 
-      const btn_home = document.querySelector("#btn-home");
-      btn_home?.addEventListener("click", () => {
+        const video = JSON.parse(localStorage.getItem("videoInfo"));
+        updateVideoInfo(video);
+
+        const btn_home = document.querySelector("#btn-home");
+        btn_home?.addEventListener("click", () => {
+          navigateToProfile();
+        });
+
+        const btn_timestamp = document.querySelector("#btn-timestamp");
+        btn_timestamp?.addEventListener("click", () => {
+          let timestamp = document.querySelector("#timestamp-input");
+          let time = videoPlayer.currentTime;
+          let hours = Math.floor(time / 3600);
+          let minutes = Math.floor((time - hours * 3600) / 60);
+          let seconds = Math.floor(time - hours * 3600 - minutes * 60);
+          if (hours < 10) {
+            hours = "0" + hours;
+          }
+          if (minutes < 10) {
+            minutes = "0" + minutes;
+          }
+          if (seconds < 10) {
+            seconds = "0" + seconds;
+          }
+          timestamp.value = `${hours}:${minutes}:${seconds}`;
+        });
+
+        const form = document.querySelector("form");
+        form.addEventListener("submit", handleFormSubmit);
+
+        fetchComments(id, video.email);
+      }
+
+      // Crea el reproductor de video
+      function createVideoPlayer(videoUrl) {
+        const videoPlayer = document.createElement("video");
+        videoPlayer.controls = true;
+        videoPlayer.width = "560";
+        videoPlayer.height = "315";
+        videoPlayer.classList.add("border-2");
+
+        const source = document.createElement("source");
+        source.type = "video/mp4";
+        source.src = videoUrl;
+        videoPlayer.appendChild(source);
+
+        return videoPlayer;
+      }
+
+      // Actualiza la información del video
+      function updateVideoInfo(video) {
+        const video_title = document.querySelector("#video-title");
+        const page_title = document.querySelector("#page-title");
+        const video_views = document.querySelector("#video-views-count");
+        // const video_author = document.querySelector("#video-author");
+
+        video_title.innerHTML = video.name;
+        page_title.innerHTML = video.name;
+        video_views.innerHTML = video.views;
+        // video_author.innerHTML = videoOwner;
+      }
+
+      // Navega al timestamp indicado
+      function navigateToTimestamp(videoPlayer, timestamp) {
+        videoPlayer.currentTime = timestamp; // Seek to 2 minutes and 30 seconds
+        videoPlayer.play();
+      }
+
+      // Navega al perfil del usuario
+      function navigateToProfile() {
         window.location.href = "profile.html";
-      });
+      }
 
-      const form = document.querySelector("form");
-      const btnSave = document.querySelector("#btn-save");
-
-      const btn_timestamp = document.querySelector("#btn-timestamp");
-
-      // if i click on the button, the modal will open
-      btn_timestamp?.addEventListener("click", () => {
-        console.log("click");
-
-        const iframeDoc =
-          video_preview.contentDocument || video_preview.contentWindow.document;
-        console.log(iframeDoc);
-
-        const modal = document.querySelector("#contenedor-modal");
-        modal.classList.add("show");
-        let timestamp = document.querySelector("#timestamp-input");
-        console.log(timestamp);
-
-        let time = video.currentTime;
-        console.log(time);
-        let hours = Math.floor(time / 3600);
-        let minutes = Math.floor((time - hours * 3600) / 60);
-        let seconds = Math.floor(time - hours * 3600 - minutes * 60);
-        if (hours < 10) {
-          hours = "0" + hours;
-        }
-        if (minutes < 10) {
-          minutes = "0" + minutes;
-        }
-        if (seconds < 10) {
-          seconds = "0" + seconds;
-        }
-        timestamp.value = `${hours}:${minutes}:${seconds}`;
-
-        modal.style.display = "block";
-      });
-
-      form.addEventListener("submit", (e) => {
+      // Maneja el envío del formulario
+      function handleFormSubmit(e) {
         e.preventDefault();
-        const timestamp = document.querySelector("#timestamp-input").value;
+        const timestampInput = document.querySelector("#timestamp-input").value;
         const note = document.querySelector("#exampleFormControlInput2").value;
+
+        const video = JSON.parse(localStorage.getItem("videoInfo"));
+        const id = getVideoId();
         const data = {
           note,
-          timestamp,
+          timestamp: timestampInput,
           user: video.email,
           video: id,
           videoTitle: video.name,
         };
-        fetch(
-          "https://stunning-capybara-1efe1a.netlify.app/.netlify/functions/api/tags",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(data),
-          }
-        )
+
+        saveComment(data);
+      }
+
+      // Guarda el comentario en la base de datos
+      function saveComment(data) {
+        console.log("data: ", data);
+        // fetch(API_TAGS, {
+        //   method: "POST",
+        //   headers: {
+        //     "Content-Type": "application/json",
+        //   },
+        //   body: JSON.stringify(data),
+        // })
+        //   .then((res) => res.json())
+        //   .then((data) => {
+        //     appendComment(data.data[0]);
+        //     closeCommentModal();
+        //   });
+        closeCommentModal();
+      }
+
+      // Obtiene el ID del video de la URL
+      function getVideoId() {
+        const urlParams = new URLSearchParams(window.location.search);
+        return urlParams.get("id");
+      }
+
+      // Cierra el modal de comentario
+      function closeCommentModal() {
+        const btn_closeModal = document.querySelector("#btn-closeModal");
+        btn_closeModal.click();
+      }
+
+      // Agrega el comentario a la lista de comentarios
+      function appendComment(comment) {
+        const commentList = document.querySelector("#comment-list");
+        const commentItem = createCommentItem(comment);
+        commentList.appendChild(commentItem);
+      }
+
+      // Crea un elemento de comentario
+      function createCommentItem(comment) {
+        const commentItem = document.createElement("li");
+        commentItem.classList.add("single-comment", "fade-in");
+        commentItem.id = `cmt_${comment.id}`;
+        commentItem.style.opacity = "1";
+
+        const commentInfo = document.createElement("span");
+        commentInfo.classList.add("comment-info");
+
+        const author = document.createElement("span");
+        author.classList.add("author");
+        author.innerHTML = comment.user_name;
+
+        const timestamp = document.createElement("a");
+        timestamp.classList.add("timestamp");
+        timestamp.innerHTML = comment.timestamp;
+        timestamp.addEventListener("click", () => {
+          console.log("timestamp: ", comment.timestamp);
+          let totalSeconds = convertTimeToSeconds(comment.timestamp);
+          navigateToTimestamp(videoPlayer, totalSeconds);
+        });
+
+        const deleteComment = document.createElement("a");
+        deleteComment.classList.add("delete-comment");
+        deleteComment.innerHTML = `<i class="bi bi-trash"></i>`;
+        deleteComment.addEventListener("click", () => {
+          deleteCommentById(comment.id);
+        });
+
+        const commentText = document.createElement("span");
+        commentText.classList.add("comment-text");
+        commentText.innerHTML = comment.tag;
+
+        commentInfo.appendChild(author);
+        commentInfo.appendChild(timestamp);
+        commentInfo.appendChild(deleteComment);
+        commentItem.appendChild(commentInfo);
+        commentItem.appendChild(commentText);
+
+        return commentItem;
+      }
+
+      // Elimina un comentario por su ID
+      function deleteCommentById(commentId) {
+        fetch(`${API_TAGS}/${commentId}`, {
+          method: "DELETE",
+        })
           .then((res) => res.json())
           .then((data) => {
-            const commentList = document.createElement("ol");
-            commentList.classList.add("comment-list");
-            commentList.id = "comment-list";
-            commentList.style.height = "540px";
-            const comment = document.createElement("li");
-            comment.classList.add("single-comment", "fade-in");
-            comment.id = "cmt_1451";
-            comment.style.opacity = "1";
-            const commentInfo = document.createElement("span");
-            commentInfo.classList.add("comment-info");
-            const author = document.createElement("span");
-            author.classList.add("author");
-            author.innerHTML = data.data[0].user_name;
-            const btn_timestamp = document.createElement("a");
-            btn_timestamp.classList.add("timestamp");
-            btn_timestamp.innerHTML = timestamp;
-            btn_timestamp.addEventListener("click", () => {
-              const minutes = timestamp.split(":")[0];
-              const seconds = timestamp.split(":")[1];
-              const totalSeconds = parseInt(minutes) * 60 + parseInt(seconds);
+            const commentItem = document.getElementById(`cmt_${commentId}`);
+            commentItem.remove();
 
-              video_preview.src = `https://drive.google.com/file/d/${id}/preview?t=${totalSeconds}`;
-            });
-            const deleteComment = document.createElement("a");
-            deleteComment.classList.add("delete-comment");
-            deleteComment.innerHTML = `<i class="bi bi-trash"></i>`;
-            deleteComment.addEventListener("click", () => {
-              fetch(
-                `https://stunning-capybara-1efe1a.netlify.app/.netlify/functions/api/tags/${id}`,
-                {
-                  method: "DELETE",
-                }
-              )
-                .then((res) => res.json())
-                .then((data) => {
-                  comment.remove();
-                  // remove its space beetwen comments
-                  const commentList = document.querySelector("#comment-list");
-                  if (commentList.children.length === 0) {
-                    commentList.remove();
-                  }
-                });
-            });
-            const commentText = document.createElement("span");
-            commentText.classList.add("comment-text");
-            commentText.innerHTML = note;
-            commentInfo.appendChild(author);
-            commentInfo.appendChild(btn_timestamp);
-            commentInfo.appendChild(deleteComment);
-            comment.appendChild(commentInfo);
-            comment.appendChild(commentText);
-            commentList.appendChild(comment);
-
-            document
-              .querySelector(".container-timestamp")
-              .appendChild(commentList);
-
-            //
-
-            const btn_closeModal = document.querySelector("#btn-closeModal");
-            btn_closeModal.click();
+            const commentList = document.querySelector("#comment-list");
+            if (commentList.children.length === 0) {
+              commentList.remove();
+            }
           });
-      });
-      fetch(
-        `https://stunning-capybara-1efe1a.netlify.app/.netlify/functions/api/tags/${id}/${video.email}`
-      )
-        .then((res) => res.json())
-        .then((data) => {
-          data.data.forEach((element) => {
-            const commentList = document.createElement("ol");
-            commentList.classList.add("comment-list");
-            commentList.id = "comment-list";
-            commentList.style.height = "540px";
-            const comment = document.createElement("li");
-            comment.classList.add("single-comment", "fade-in");
-            comment.id = "cmt_1451";
-            comment.style.opacity = "1";
-            const commentInfo = document.createElement("span");
-            commentInfo.classList.add("comment-info");
-            const author = document.createElement("span");
-            author.classList.add("author");
-            author.innerHTML = element.user_name;
-            const timestamp = document.createElement("a");
-            timestamp.classList.add("timestamp");
-            timestamp.innerHTML = element.timestamp;
-            timestamp.addEventListener("click", () => {
-              const minutes = element.timestamp.split(":")[0];
-              const seconds = element.timestamp.split(":")[1];
-              const totalSeconds = parseInt(minutes) * 60 + parseInt(seconds);
+      }
 
-              video_preview.src = `https://drive.google.com/file/d/${id}/preview?t=${totalSeconds}`;
-            });
-            const deleteComment = document.createElement("a");
-            deleteComment.classList.add("delete-comment");
-            deleteComment.innerHTML = `<i class="bi bi-trash"></i>`;
-            deleteComment.addEventListener("click", () => {
-              fetch(
-                `https://stunning-capybara-1efe1a.netlify.app/.netlify/functions/api/tags/${element.id}`,
-                {
-                  method: "DELETE",
-                }
-              )
-                .then((res) => res.json())
-                .then((data) => {
-                  comment.remove();
-                });
-            });
-            const commentText = document.createElement("span");
-            commentText.classList.add("comment-text");
-            commentText.innerHTML = element.note;
-            commentInfo.appendChild(author);
-            commentInfo.appendChild(timestamp);
-            commentInfo.appendChild(deleteComment);
-            comment.appendChild(commentInfo);
-            comment.appendChild(commentText);
-            commentList.appendChild(comment);
-
-            document
-              .querySelector(".container-timestamp")
-              .appendChild(commentList);
+      // Obtiene y muestra los comentarios existentes
+      function fetchComments(id, email) {
+        // fetch(`${API_TAGS}/${id}/${email}`)
+        fetch(`${API_TAGS}/${id}`)
+          .then((res) => res.json())
+          .then((data) => {
+            console.log("data: ", data);
+            const comments = data.data;
+            if (comments.length === 0) {
+              displayNoCommentsMessage();
+            } else {
+              const commentList = createCommentList();
+              comments.forEach((comment) => {
+                const commentItem = createCommentItem(comment);
+                commentList.appendChild(commentItem);
+              });
+              appendCommentList(commentList);
+            }
+          })
+          .catch((err) => {
+            displayNoCommentsMessage();
           });
-        })
-        .catch((err) => {
-          const mensaje = document.createElement("p");
-          mensaje.innerHTML = "No se encontraron etiquetas";
-          document.querySelector(".container-timestamp").appendChild(mensaje);
-        });
+      }
+
+      // Crea una lista de comentarios
+      function createCommentList() {
+        const commentList = document.createElement("ol");
+        commentList.classList.add("comment-list");
+        commentList.id = "comment-list";
+        commentList.style.height = "540px";
+        return commentList;
+      }
+
+      // Muestra un mensaje de "No se encontraron comentarios"
+      function displayNoCommentsMessage() {
+        const commentList = createCommentList();
+
+        const message = document.createElement("p");
+        message.innerHTML = "No se encontraron comentarios";
+        commentList.appendChild(message);
+
+        appendCommentList(commentList);
+      }
+
+      // Agrega la lista de comentarios a la página
+      function appendCommentList(commentList) {
+        const containerTimestamp = document.querySelector(
+          ".container-timestamp"
+        );
+        containerTimestamp.appendChild(commentList);
+      }
+
+      // Obtiene información del autor del video
+      function getVideoInfo(id, API_KEY) {
+        // const fileInfoUrl = `https://www.googleapis.com/drive/v3/files/${id}?fields=owners&key=${API_KEY}`;
+        // fetch(fileInfoUrl)
+        //   .then((response) => response.json())
+        //   .then((data) => {
+        //     console.log("data: ", data);
+        //     // Obtener información sobre el propietario
+        //     const owners = data.owners;
+        //     if (owners && owners.length > 0) {
+        //       const owner = owners[0]; // Suponiendo un solo propietario
+        //       console.log("Nombre: " + owner.displayName);
+        //       const video_author = document.querySelector("#video-author");
+        //       video_author.innerHTML = owner.displayName;
+        //     } else {
+        //       console.log("No se encontró información del propietario.");
+        //     }
+        //   })
+        //   .catch((error) => {
+        //     console.error(
+        //       "Error al obtener información del propietario:",
+        //       error
+        //     );
+        //   });
+        fetch(
+          `https://www.googleapis.com/drive/v3/files/${id}?key=${API_KEY}&fields=name,owners`
+        )
+          .then((response) => response.json())
+          .then((data) => {
+            console.log("data: ", data);
+            const videoTitle = data.name;
+            const owners = data.owners;
+            if (owners && owners.length > 0) {
+              const owner = owners[0];
+              const videoAuthor = owner.displayName;
+              const videoTitleElement = document.querySelector("#video-title");
+              const videoAuthorElement =
+                document.querySelector("#video-author");
+              const pageTitleElement = document.querySelector("#page-title");
+              if (videoTitleElement) {
+                videoTitleElement.textContent = videoTitle;
+              }
+              if (videoAuthorElement) {
+                videoAuthorElement.textContent = videoAuthor;
+              }
+              if (pageTitleElement) {
+                pageTitleElement.textContent = videoTitle;
+              }
+            } else {
+              console.log("No se encontró información del propietario.");
+            }
+          })
+          .catch((error) => {
+            console.error("Error al obtener información del video:", error);
+          });
+      }
+
+      // utils
+      function convertTimeToSeconds(timestamp) {
+        const [hours, minutes, seconds] = timestamp.split(":");
+        const totalSeconds =
+          parseInt(hours) * 3600 + parseInt(minutes) * 60 + parseInt(seconds);
+
+        return totalSeconds;
+      }
+
+      loadVideo();
     </script>
   </body>
 </html>
