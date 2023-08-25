@@ -1,6 +1,5 @@
-// const { supabase_config } = require('../config/db');
-// const colors = require('../utils/colors');
-
+const { supabase_config } = require('../config/db');
+const colors = require('../utils/colors');
 // use supabase package
 const { createClient } = require('@supabase/supabase-js');
 

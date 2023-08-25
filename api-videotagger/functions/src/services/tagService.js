@@ -1,18 +1,6 @@
 const supabase = require('./dbService');
 const colors = require('../utils/colors');
 
-const axios = require('axios');
-const https = require('https');
-// const { java_api } = require('../config/config');
-
-const httpsAgent = new https.Agent({
-  rejectUnauthorized: false
-});
-
-const instance = axios.create({
-  httpsAgent
-});
-
 const getTags = async () => {
   console.log('getTags');
   const { data, error } = await supabase.from('tags').select('*, videos(*)');
@@ -26,126 +14,133 @@ const getTags = async () => {
   return { status: 200, data: data };
 };
 
-const getTagsFromVideo = async (video) => {
-  try {
-    const response = await await instance.get(
-      'https://videotagger.borrego-research.com/api/videos'
-    );
-    const foundItem = response.data.find(
-      (item) => item.artifactLocation === video
-    );
+const getTagsFromVideoAndEmail = async (video, email) => {
+  // get video id
+  const { data: videos, error: errorVideo } = await supabase
+    .from('videos')
+    .select()
+    .eq('url', video)
+    // .eq('email', email)
+    .order('id', { ascending: false });
 
-    // Remove leading white spaces from timestamps
-    const cleanedTimestamps = foundItem?.artifactTagsTimestamp?.map((tag) => ({
-      tag: tag.tag,
-      timestamp: tag.timestamp.trim() // Use trim() to remove leading and trailing white spaces
-    }));
-
-    return { status: 200, data: cleanedTimestamps };
-  } catch (error) {
-    console.error(error);
-    return { status: 500, error: 'Internal Server Error' };
+  if (errorVideo) {
+    console.log(colors.red('Error getting videos: ' + errorVideo));
+    return {
+      status: 500,
+      error: errorVideo
+    };
   }
+
+  // insert name according to email
+  const { data: users, error: errorUsers } = await supabase
+    .from('users')
+    .select();
+  if (errorUsers) {
+    console.log(colors.red('Error getting users: ' + errorUsers));
+    return {
+      status: 500,
+      error: errorUsers
+    };
+  }
+
+  // get tags
+  const { data, error } = await supabase
+    .from('tags')
+    .select()
+    .eq('video', videos[0]?.id)
+    .order('timestamp', { ascending: true });
+
+  if (error) {
+    console.log(colors.red('Error getting tags: ' + error));
+    return {
+      status: 500,
+      error: error
+    };
+  }
+
+  data.forEach((tag) => {
+    const user = users.find((user) => user.email === tag.user);
+    tag.user_name = user.name;
+  });
+
+  // // add user data to tags
+  // const { data, error } = await supabase
+  //   .from('tags')
+  //   // .join('users', 'users.email', 'tags.user')
+  //   .select()
+  //   .eq('video', videos[0]?.id);
+  // // .eq('user', email);
+
+  if (error) {
+    console.log(colors.red('Error getting tags: ' + JSON.stringify(error)));
+    return {
+      status: 500,
+      error: error
+    };
+  }
+
+  const orderedData = data.sort((a, b) => {
+    const aTime = a.timestamp.split(':');
+    const bTime = b.timestamp.split(':');
+
+    const secondsInHour = 3600;
+    const secondsInMinute = 60;
+
+    if (aTime.length === 3 && bTime.length === 3) {
+      return (
+        parseInt(aTime[0]) * secondsInHour +
+        parseInt(aTime[1]) * secondsInMinute +
+        parseInt(aTime[2]) -
+        (parseInt(bTime[0]) * secondsInHour +
+          parseInt(bTime[1]) * secondsInMinute +
+          parseInt(bTime[2]))
+      );
+    } else if (aTime.length === 2 && bTime.length === 2) {
+      return (
+        parseInt(aTime[0]) * secondsInMinute +
+        parseInt(aTime[1]) -
+        (parseInt(bTime[0]) * secondsInMinute + parseInt(bTime[1]))
+      );
+    } else {
+      return 0;
+    }
+  });
+
+  return { status: 200, data: orderedData };
 };
 
 const insertTag = async (tag) => {
-  try {
-    const response = await instance.put(
-      'https://videotagger.borrego-research.com/api/videos/tag',
-      tag
-    );
-    return { status: 200, data: response.data };
-  } catch (error) {
-    console.error(error);
-    return { status: error, error: error };
+  let result = await validateVideo(tag);
+  console.log('result', result);
+  let videoId = result.data[0].id;
+
+  const { data, error } = await supabase
+    .from('tags')
+    .insert({
+      video: videoId,
+      user: tag.user,
+      tag: tag.tag,
+      note: tag.note,
+      timestamp: tag.timestamp
+    })
+    .select();
+
+  // insert user name to tag
+  const { data: user, error: errorUser } = await supabase
+    .from('users')
+    .select()
+    .eq('email', tag.user);
+  data[0].user_name = user[0].name;
+
+  if (error) {
+    console.log(colors.red('Error inserting tags: ' + error));
+    return {
+      status: 500,
+      error: error
+    };
   }
+  return { status: 200, data: data };
 };
-
-// const getTagsFromVideoAndEmail = async (video, email) => {
-//   // get video id
-//   const { data: videos, error: errorVideo } = await supabase
-//     .from('videos')
-//     .select()
-//     .eq('url', video)
-//     .order('id', { ascending: false });
-
-//   if (errorVideo) {
-//     console.log(colors.red('Error getting videos: ' + errorVideo));
-//     return {
-//       status: 500,
-//       error: errorVideo
-//     };
-//   }
-
-//   // insert name according to email
-//   const { data: users, error: errorUsers } = await supabase
-//     .from('users')
-//     .select();
-//   if (errorUsers) {
-//     console.log(colors.red('Error getting users: ' + errorUsers));
-//     return {
-//       status: 500,
-//       error: errorUsers
-//     };
-//   }
-
-//   // get tags
-//   const { data, error } = await supabase
-//     .from('tags')
-//     .select()
-//     .eq('video', videos[0]?.id)
-//     .order('timestamp', { ascending: true });
-
-//   if (error) {
-//     console.log(colors.red('Error getting tags: ' + error));
-//     return {
-//       status: 500,
-//       error: error
-//     };
-//   }
-
-//   data.forEach((tag) => {
-//     const user = users.find((user) => user.email === tag.user);
-//     tag.user_name = user.name;
-//   });
-
-//   if (error) {
-//     console.log(colors.red('Error getting tags: ' + JSON.stringify(error)));
-//     return {
-//       status: 500,
-//       error: error
-//     };
-//   }
-
-//   const orderedData = data.sort((a, b) => {
-//     const aTime = a.timestamp.split(':');
-//     const bTime = b.timestamp.split(':');
-
-//     const secondsInHour = 3600;
-//     const secondsInMinute = 60;
-
-//     if (aTime.length === 3 && bTime.length === 3) {
-//       return (
-//         parseInt(aTime[0]) * secondsInHour +
-//         parseInt(aTime[1]) * secondsInMinute +
-//         parseInt(aTime[2]) -
-//         (parseInt(bTime[0]) * secondsInHour +
-//           parseInt(bTime[1]) * secondsInMinute +
-//           parseInt(bTime[2]))
-//       );
-//     } else if (aTime.length === 2 && bTime.length === 2) {
-//       return (
-//         parseInt(aTime[0]) * secondsInMinute +
-//         parseInt(aTime[1]) -
-//         (parseInt(bTime[0]) * secondsInMinute + parseInt(bTime[1]))
-//       );
-//     } else {
-//       return 0;
-//     }
-//   });
-
-//   return { status: 200, data: orderedData };
-// };
 
 const deleteTag = async (tag) => {
   const { data: videoId, error: errorTag } = await supabase
@@ -240,8 +235,7 @@ const validateVideo = async (info) => {
 
 module.exports = {
   getTags,
-  // getTagsFromVideoAndEmail,
-  getTagsFromVideo,
+  getTagsFromVideoAndEmail,
   insertTag,
   deleteTag
 };

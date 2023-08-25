@@ -2,30 +2,30 @@
   "name": "api-videotagger",
   "version": "1.0.0",
   "description": "",
-  "main": ".eslintrc.js",
+  "main": "./functions/app.js",
   "scripts": {
     "build": "netlify deploy --prod",
     "dev": "nodemon ./functions/app.js",
     "start": "node ./functions/app.js",
     "lint": "eslint . --fix"
   },
+  "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@supabase/supabase-js": "^2.32.0",
-    "axios": "^1.4.0",
+    "@supabase/supabase-js": "^2.12.1",
     "colors": "^1.4.0",
     "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
+    "dotenv": "^16.0.3",
     "express": "^4.18.2",
     "morgan": "^1.10.0",
-    "netlify-cli": "^16.1.0",
+    "netlify-cli": "^13.2.2",
     "netlify-lambda": "^2.0.16",
     "serverless-http": "^3.2.0"
   },
   "devDependencies": {
-    "eslint": "^8.47.0",
-    "nodemon": "^3.0.1",
-    "prettier": "^3.0.2"
+    "eslint": "^8.36.0",
+    "nodemon": "^2.0.22",
+    "prettier": "^2.8.7"
   }
 }
