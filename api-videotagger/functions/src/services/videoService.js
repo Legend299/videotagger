@@ -23,6 +23,7 @@ const getVideos = async () => {
 };
 
 const insertVideo = async (video) => {
+<<<<<<< HEAD
   try {
     const response = await instance.post(
       'https://videotagger.borrego-research.com/api/videos/save',
@@ -33,9 +34,25 @@ const insertVideo = async (video) => {
     console.error(error);
     return { status: error, error: error };
   }
+=======
+  console.log('insertVideo');
+  const { data, error } = await supabase.from('videos').insert(video);
+  if (error) {
+    console.log(colors.red('Error inserting video: ' + error));
+    return {
+      status: 500,
+      error: error
+    };
+  }
+  return { status: 200, data: data };
+>>>>>>> parent of 978c676 (feat: db videws column)
 };
 
 module.exports = {
   getVideos,
+<<<<<<< HEAD
+=======
+  getVideosFromEmail,
+>>>>>>> parent of 978c676 (feat: db videws column)
   insertVideo
 };

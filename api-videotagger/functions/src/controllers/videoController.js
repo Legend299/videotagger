@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 const { getVideos, insertVideo } = require('../services/videoService');
+=======
+const {
+  getVideos,
+  getVideosFromEmail,
+  insertVideo
+} = require('../services/videoService');
+>>>>>>> parent of 978c676 (feat: db videws column)
 
 const getAll = async (_, res, next) => {
   try {
@@ -20,5 +28,9 @@ const post = async (req, res, next) => {
 
 module.exports = {
   getAll,
+<<<<<<< HEAD
+=======
+  getFromEmail,
+>>>>>>> parent of 978c676 (feat: db videws column)
   post
 };
